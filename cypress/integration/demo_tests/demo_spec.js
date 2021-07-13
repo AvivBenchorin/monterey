@@ -24,7 +24,7 @@ describe('opening OpenSearch-Dashboards', () => {
     // Return to the home page before every test, and ensure page has loaded
     beforeEach(() => {
         cy.visit('/app/home').then(() => {
-            cy.get('[data-test-subj="breadcrumb first last"]', { timeout: 20000 }).should('contain', 'Home')
+            cy.get('[data-test-subj="homeApp"]', { timeout: 20000 }).should('be.visible')
         })
     })
 
@@ -59,5 +59,66 @@ describe('opening OpenSearch-Dashboards', () => {
         **/
         cy.get('[data-attr-field="category"]').click()
         cy.get('[data-test-subj="fieldToggle-category"]').click()
+    })
+
+    it('Explore the data in the dashboard', () => {
+        /**
+         * Known issue: Comboboxes UI elements are behaving inconsistently,
+         * can only sometimes successfully "click on" and select options.
+        **/
+        cy.get('[data-test-subj="toggleNavButton"]').click()
+        // Click the Dashboards button in the Nav menu
+        cy.get('[data-test-subj="collapsibleNavAppLink"]').contains('Dashboard').click()
+
+        // Check if automatically opening a dashboard or not
+        cy.url().then((path) => {
+            if (path.includes('/app/dashboards#/list')) {
+                cy.get('[data-test-subj="dashboardListingTitleLink-[eCommerce]-Revenue-Dashboard"]').click()
+            }
+        })
+        // Make sure the desired UI element is visible
+        cy.get('[data-test-subj="inputControl0"]').should('be.visible')
+
+        // Clear all existing filters in the dashboard
+        cy.get('[data-test-subj="showFilterActions"]').click()
+        cy.get('[data-test-subj="removeAllFilters"]').click()
+
+        // Select "Gnomehouse"
+        cy.get('[data-test-subj="listControlSelect0"]').find('[data-test-subj="comboBoxSearchInput"]').type('{selectall}Gnomehouse')
+        cy.get('[class="euiFilterSelectItem"]').should('have.length', 2)
+        cy.get('[data-test-subj="listControlSelect0"]').find('[data-test-subj="comboBoxInput"]').focus()
+        cy.get('[title="Gnomehouse"]').click({ force: true })
+
+        // Select "Women's Clothing"
+        cy.get('[data-test-subj="listControlSelect1"]').find('[data-test-subj="comboBoxInput"]').type("{selectall}Women's Clothing")
+        cy.get('[class="euiFilterSelectItem"]').should('have.length', 1)
+        cy.get('[data-test-subj="listControlSelect1"]').find('[data-test-subj="comboBoxInput"]').focus()
+        cy.contains('[data-test-subj="listControlSelect1"]', "Women's Clothing").click({ force: true })
+
+        cy.get('[data-test-subj="inputControlSubmitBtn"]').click()
+
+        cy.get('[data-test-subj="addFilter"]').click()
+
+        // Click the "day_of_week" element
+        cy.get('[data-test-subj="filterFieldSuggestionList"]').find('[data-test-subj="comboBoxInput"]').type('{selectall}day_of_week')
+        cy.get('[class="euiFilterSelectItem"]').should('have.length', 2)
+        cy.get('[data-test-subj="filterFieldSuggestionList"]').find('[data-test-subj="comboBoxInput"]').focus()
+        cy.get('[title="day_of_week"]').click({ force: true })
+
+        // Click the "is" operator
+        cy.get('[data-test-subj="filterOperatorList"]').click()
+        cy.get('[data-test-subj="filterOperatorList"]').find('[data-test-subj="comboBoxInput"]').type('{selectall}is')
+        cy.get('[class="euiFilterSelectItem"]').should('have.length', 6)
+        cy.get('[data-test-subj="filterOperatorList"]').find('[data-test-subj="comboBoxInput"]').focus()
+        cy.get('[title="is"]').click({ force: true })
+
+        // Select the "Wednesday" value
+        cy.get('[data-test-subj="filterParamsComboBox phraseParamsComboxBox"]').click()
+        cy.get('[data-test-subj="filterParamsComboBox phraseParamsComboxBox"]').find('[data-test-subj="comboBoxInput"]').type('{selectall}Wednesday')
+        cy.get('[class="euiFilterSelectItem"]').should('have.length', 1)
+        cy.get('[data-test-subj="filterParamsComboBox phraseParamsComboxBox"]').find('[data-test-subj="comboBoxInput"]').focus()
+        cy.get('[title="Wednesday"]').click({ force: true })
+
+        cy.get('[data-test-subj="saveFilter"]').click()
     })
 })
