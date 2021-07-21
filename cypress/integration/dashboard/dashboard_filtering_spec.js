@@ -12,23 +12,32 @@
 
 describe('dashboard filtering', () => {
   before(() => {
-    // Increase the viewport size to prevent pop-up notifications from blocking UI element
-    // E.g. after adding a saved visualization, a notification appears in the bottom right
-    // which could block clicking on a button located behind it.
-    cy.viewport(1900, 1080)
+    // WORK IN PROGRESS: https://github.com/AvivBenchorin/monterey/issues/11
+    cy.clearJSONMapping('cypress/fixtures/dashboard/data/mappings.json.txt')
 
-    // TO DO: Setup the indices
-    // cy.request('PUT', 'localhost:9200/.kibana_1', cy.fixture('dashboard/mappings.json'))
-    // cy.request('POST', 'localhost:9200/.kibana_1', cy.fixture('dashboard/data.json.gz'))
+    cy.importJSONMapping('cypress/fixtures/dashboard/opensearch_dashboards/mappings.json.txt')
+    cy.importJSONMapping('cypress/fixtures/dashboard/data/mappings.json.txt')
+
+    cy.importJSONDoc('cypress/fixtures/dashboard/opensearch_dashboards/data.json.txt')
+    cy.importJSONDoc('cypress/fixtures/dashboard/data/data.json.txt')
   })
 
   after(() => {
-    // TO DO: Tear-down the indices
-    // cy.request('DELETE', 'localhost:9200')
+    // WORK IN PROGRESS: https://github.com/AvivBenchorin/monterey/issues/11
+    cy.clearJSONMapping('cypress/fixtures/dashboard/data/mappings.json.txt')
   })
-
+  describe('stall tactics to try and speed up testing', () => {
+    it('open the dashboards (and thats it)', () => {
+      cy.visit('app/dashboards/list')
+    })
+  })
   describe('adding a filter that excludes all data', () => {
     before(() => {
+      // Increase the viewport size to prevent pop-up notifications from blocking UI element
+      // E.g. after adding a saved visualization, a notification appears in the bottom right
+      // which could block clicking on a button located behind it.
+      cy.viewport(1900, 1080)
+
       // Go to the Dashboards list page
       cy.visit('app/dashboards/list')
 
@@ -109,6 +118,7 @@ describe('dashboard filtering', () => {
 
   describe('using a pinned filter that excludes all data', () => {
     before(() => {
+      cy.viewport(1900, 1080)
       cy.get('[data-test-subj="filter filter-enabled filter-key-bytes filter-value-12,345,678 filter-unpinned "]').click()
       cy.get('[data-test-subj="pinFilter"]').click()
     })
@@ -174,6 +184,7 @@ describe('dashboard filtering', () => {
   describe('disabling a filter unfilters the data on', () => {
     before(() => {
       // TO DO: create delete filter helper function
+      cy.viewport(1900, 1080)
       cy.get('[data-test-subj="filter filter-enabled filter-key-bytes filter-value-12,345,678 filter-unpinned "]').click()
       cy.get('[data-test-subj="deleteFilter"]').click()
       cy.get('[data-test-subj="filter filter-enabled filter-key-bytes filter-value-12,345,678 filter-unpinned "]').should('not.exist')
@@ -196,8 +207,8 @@ describe('dashboard filtering', () => {
 
     it('goal and guages', () => {
       // Goal label should be 7,544, gauge label should be 39.958%%
-      // Inconsistency: original code wants 7,544, current UI wants 7,565
-      cy.checkElementContainsValue('svg > g > g > text.chart-label', 2, /^(7,565)|(39.958%)$/)
+      // Inconsistency: original code wants 7,544, sometimes visualization shows 7,565
+      cy.checkElementContainsValue('svg > g > g > text.chart-label', 2, /^(7,554)|(39.958%)$/)
     })
 
     it('metric value', () => {
@@ -241,6 +252,7 @@ describe('dashboard filtering', () => {
   describe('nested filtering', () => {
     before(() => {
       // Go to the Dashboards list page
+      cy.viewport(1900, 1080)
       cy.visit('app/dashboards/list')
     })
     it('visualization saved with a query filters data', () => {
