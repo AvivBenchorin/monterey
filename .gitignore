@@ -106,5 +106,7 @@ dist
 .DS_Store
 
 cypress/videos
-
+cypress/screenshots
+cypress/downloads
 cypress.env.json
+cypress/fixtures/dashboard/data/testFixtures

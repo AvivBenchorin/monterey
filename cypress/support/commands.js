@@ -29,6 +29,7 @@
  * @param {String} start Start datetime to set
  * @param {String} end  End datetime to set
  */
+
 Cypress.Commands.add('setDashboardDataRange', (start, end) => {
   cy.get('[data-test-subj="superDatePickerShowDatesButton"]').should('be.visible').click()
 
@@ -52,6 +53,7 @@ Cypress.Commands.add('setDashboardDataRange', (start, end) => {
  * @param {String} type Panel type to search for
  * @param {Boolean} multiplePages Whether there are multiple pages to iterate through
  */
+
 Cypress.Commands.add('addDashboardPanels', (keyword, type, multiplePages = true) => {
   const iteratePages = () => {
     cy.get('[data-test-subj="pagination-button-next"]').then(($nextBtn) => {
@@ -98,28 +100,25 @@ Cypress.Commands.add('addDashboardFilterRetryFull', (field, operator, value = nu
     cy.get('[data-test-subj="comboBoxOptionsList ' + selector + '-optionsList"]').find('[title="' + keyword + '"]').trigger('click', { force: true })
   }
 
-  // Attempt up to three times to select the desired field and operator options and input the value (if applicable) 
+  // Attempt up to three times to select the desired field and operator options and input the value (if applicable)
   const tryToAddFilter = (field, operator, value = null, retry = 0) => {
     cy.wait(3000)
     cy.get('[data-test-subj="addFilter"]').click({ scrollBehavior: 'center' }).then(() => {
-      
       selectComboBoxInput('filterFieldSuggestionList', field)
       cy.get('[data-test-subj="filterFieldSuggestionList"]').then(($field) => {
         const cls = $field.attr('class')
         if (cls.includes('euiComboBox-isInvalid') && retry < 3) {
           cy.get('[data-test-subj="cancelSaveFilter"]').click()
           tryToAddFilter(field, operator, value, retry + 1)
-        }
-        else {
+        } else {
           selectComboBoxInput('filterOperatorList', operator)
           cy.get('[data-test-subj="filterOperatorList"]').then(($operator) => {
             const cls = $operator.attr('class')
             if (cls.includes('euiComboBox-isInvalid') && retry < 3) {
               cy.get('[data-test-subj="cancelSaveFilter"]').click()
               tryToAddFilter(field, operator, value, retry + 1)
-            }
-            else {
-              if(value !== null) {
+            } else {
+              if (value !== null) {
                 cy.get('[data-test-subj="filterParams"]').find('input').type(value)
               }
               cy.get('[data-test-subj="saveFilter"]').click()
@@ -158,12 +157,11 @@ Cypress.Commands.add('addDashboardFilterRetrySelection', (field, operator, value
     selectComboBoxInput('filterOperatorList', operator)
   })
 
-  if(value != null) {  
+  if (value != null) {
     cy.get('[data-test-subj="filterParams"]').find('input').type(value)
   }
   cy.get('[data-test-subj="saveFilter"]').click()
 })
-
 
 /**
  * Save a dashboard visualization
@@ -250,8 +248,100 @@ Cypress.Commands.add('checkElementComponentContainsValue', (mainSelector, compon
  * @param {Array} values Array of string values
  */
 
- Cypress.Commands.add('checkValuesExistInComponent', (selector, value) => {
-    cy.wrap(value).each((str) => {
-      cy.get(selector).contains(new RegExp('^' + str + '$'))
+Cypress.Commands.add('checkValuesExistInComponent', (selector, value) => {
+  cy.wrap(value).each((str) => {
+    cy.get(selector).contains(new RegExp('^' + str + '$'))
+  })
+})
+
+/**
+ * Read indices from a file and send to OpenSearch using the create index API
+ * @param {String} filename File path (with its root at the directory containing the cypress.json file)
+ * @param {String} hostname Host name for OpenSearch
+ * @param {String} port Port for OpenSearch
+ */
+
+Cypress.Commands.add('importJSONMapping', (filepath, hostname = 'localhost', port = '9200') => {
+  cy.readFile(filepath, 'utf8').then((str) => {
+    const strSplit = str.split('\n\n')
+    cy.wrap(strSplit).each((element) => {
+      const json = JSON.parse(element)
+      if (json.type === 'index') {
+        const index = json.value.index
+        const settings = json.value.settings
+        const mappings = json.value.mappings
+        const aliases = json.value.aliases
+        const body = { settings, mappings, aliases }
+        cy.request({ method: 'PUT', url: hostname + ':' + port + '/' + index, body: body, failOnStatusCode: false }).then((response) => {
+
+        })
+      }
     })
+  })
+})
+
+/**
+ * Read indices from a file and request for them to be deleted from OpenSearch using the delete index API
+ * @param {String} filename File path (with its root at the directory containing the cypress.json file)
+ * @param {String} hostname Host name for OpenSearch
+ * @param {String} port Port for OpenSearch
+ */
+
+Cypress.Commands.add('clearJSONMapping', (filename, hostname = 'localhost', port = '9200') => {
+  cy.readFile(filename, 'utf8').then((str) => {
+    const strSplit = str.split('\n\n')
+    cy.wrap(strSplit).each((element) => {
+      const json = JSON.parse(element)
+      if (json.type === 'index') {
+        const index = json.value.index
+        cy.request({ method: 'DELETE', url: hostname + ':' + port + '/' + index, failOnStatusCode: false }).then((response) => {
+        })
+      }
+    })
+  })
+})
+
+/**
+ * Read docs from a file and import them to OpenSearch using the bulk API
+ * @param {String} filename File path (with its root at the directory containing the cypress.json file)
+ * @param {String} hostname Host name for OpenSearch
+ * @param {String} port Port for OpenSearch
+ */
+
+Cypress.Commands.add('importJSONDoc', (filename, hostname = 'localhost', port = '9200', bulkMax = 1600) => {
+  cy.readFile(filename, 'utf8').then((str) => {
+    let line = 0
+    let bucket = 0
+    const bulkLines = [[]]
+    str.split('\n\n').forEach((element) => {
+      const json = JSON.parse(element)
+
+      const id = json.value.id
+      const index = json.value.index
+      const source = json.value.source
+
+      const body = { index: { _id: id, _index: index } }
+      const oneLineBody = JSON.stringify(body).replace('\n', '')
+      const oneLineSource = JSON.stringify(source).replace('\n', '')
+      const oneLineDoc = oneLineBody + '\n' + oneLineSource
+      bulkLines[0].push(oneLineDoc)
+
+      line = line + 1
+      if (line % bulkMax === 0) {
+        cy.request({ headers: { 'Content-Type': 'application/json' }, method: 'POST', url: hostname + ':' + port + '/_bulk', body: bulkLines.pop().join('\n') + '\n', failOnStatusCode: false, timeout: 30000 }).then((response) => {
+          expect(response.status).to.eq(200)
+        })
+        bucket = bucket + 1
+        bulkLines.push([])
+      }
+    })
+    if (bulkLines.length > 0) {
+      cy.request({ headers: { 'Content-Type': 'application/json' }, method: 'POST', url: hostname + ':' + port + '/_bulk', body: bulkLines.pop().join('\n') + '\n', failOnStatusCode: false, timeout: 30000 }).then((response) => {
+        expect(response.status).to.eq(200)
+      })
+    }
+    cy.request({ method: 'POST', url: hostname + ':' + port + '/_all/_refresh', failOnStatusCode: false }).then((response) => {
+      expect(response.status).to.eq(200)
+    })
+  })
 })
