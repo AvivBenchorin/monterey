@@ -6,17 +6,13 @@
 describe('opening OpenSearch-Dashboards', () => {
   // Setup the dashboard to start at the home page
   before(() => {
-    cy.visit('/')
-    cy.request('/api/saved_objects/_find?fields=title&per_page=1&search=*&search_fields=title&type=index-pattern').then((response) => {
-      if (response.body.total === 0) {
-        cy.log('Reached welcome page')
-
-        // Click the "Add sample data" button
-        cy.get('[class="euiButton euiButton--primary homWelcome__footerAction euiButton--fill"]', { timeout: 15000 }).click()
-
-        // View the "Sample eCommerce orders" data
-        cy.get('[data-test-subj="addSampleDataSetecommerce"]', { timeout: 15000 }).click()
-        cy.get('[data-test-subj="launchSampleDataSetecommerce"]').should('contain', 'View data')
+    cy.visit('/app/home#/tutorial_directory')
+    cy.get('[data-test-subj="sampleDataSetCardecommerce"]', { timeout: 30000 }).then(($panel) => {
+      if ($panel.find('[data-test-subj="removeSampleDataSetecommerce"]').length) {
+        cy.get('[data-test-subj="launchSampleDataSetecommerce"]', { timeout: 30000 }).contains('View data').click()
+      } else {
+        cy.get('[data-test-subj="addSampleDataSetecommerce"]').contains('Add data').click()
+        cy.get('[data-test-subj="launchSampleDataSetecommerce"]', { timeout: 30000 }).contains('View data').click()
       }
     })
   })
@@ -24,7 +20,7 @@ describe('opening OpenSearch-Dashboards', () => {
   // Return to the home page before every test, and ensure page has loaded
   beforeEach(() => {
     cy.visit('/app/home').then(() => {
-      cy.get('[data-test-subj="homeApp"]', { timeout: 20000 }).should('be.visible')
+      cy.get('[data-test-subj="homeApp"]', { timeout: 30000 }).should('be.visible')
     })
   })
 
@@ -37,6 +33,10 @@ describe('opening OpenSearch-Dashboards', () => {
     // Ensure that the page is a "blank slate" (clear previous searches, refresh to get rid of old errors)
     cy.get('[data-test-subj="breadcrumbs"]').should('contain', 'Discover')
     cy.get('[data-test-subj="queryInput"]').clear()
+    cy.get('[data-test-subj="querySubmitButton"]').click()
+
+    cy.get('[data-test-subj="indexPattern-switch-link"]').click()
+    cy.get('[data-test-subj="indexPattern-switcher"]').find('[title="opensearch_dashboards_sample_data_ecommerce"]').click()
     cy.get('[data-test-subj="querySubmitButton"]').click()
 
     // Open time quick select tab
@@ -62,10 +62,6 @@ describe('opening OpenSearch-Dashboards', () => {
   })
 
   it('Explore the data in the dashboard', () => {
-    /**
-     * Known issue: Comboboxes UI elements are behaving inconsistently,
-     * can only sometimes successfully "click on" and select options.
-     */
     cy.get('[data-test-subj="toggleNavButton"]').click()
     // Click the Dashboards button in the Nav menu
     cy.get('[data-test-subj="collapsibleNavAppLink"]').contains('Dashboard').click()
@@ -84,41 +80,17 @@ describe('opening OpenSearch-Dashboards', () => {
     cy.get('[data-test-subj="removeAllFilters"]').click()
 
     // Select "Gnomehouse"
-    cy.get('[data-test-subj="listControlSelect0"]').find('[data-test-subj="comboBoxSearchInput"]').type('{selectall}Gnomehouse')
+    cy.get('[data-test-subj="listControlSelect0"]').find('[data-test-subj="comboBoxSearchInput"]').trigger('focus').type('{selectall}Gnomehouse')
     cy.get('[class="euiFilterSelectItem"]').should('have.length', 2)
-    cy.get('[data-test-subj="listControlSelect0"]').find('[data-test-subj="comboBoxInput"]').focus()
-    cy.get('[title="Gnomehouse"]').click({ force: true })
+    cy.get('[title="Gnomehouse"]').trigger('click', { force: true })
 
     // Select "Women's Clothing"
-    cy.get('[data-test-subj="listControlSelect1"]').find('[data-test-subj="comboBoxInput"]').type("{selectall}Women's Clothing")
+    cy.get('[data-test-subj="listControlSelect1"]').find('[data-test-subj="comboBoxInput"]').trigger('focus').type("{selectall}Women's Clothing")
     cy.get('[class="euiFilterSelectItem"]').should('have.length', 1)
-    cy.get('[data-test-subj="listControlSelect1"]').find('[data-test-subj="comboBoxInput"]').focus()
-    cy.contains('[data-test-subj="listControlSelect1"]', "Women's Clothing").click({ force: true })
+    cy.contains('[data-test-subj="listControlSelect1"]', "Women's Clothing").trigger('click', { force: true })
 
     cy.get('[data-test-subj="inputControlSubmitBtn"]').click()
 
-    cy.get('[data-test-subj="addFilter"]').click()
-
-    // Click the "day_of_week" element
-    cy.get('[data-test-subj="filterFieldSuggestionList"]').find('[data-test-subj="comboBoxInput"]').type('{selectall}day_of_week')
-    cy.get('[class="euiFilterSelectItem"]').should('have.length', 2)
-    cy.get('[data-test-subj="filterFieldSuggestionList"]').find('[data-test-subj="comboBoxInput"]').focus()
-    cy.get('[title="day_of_week"]').click({ force: true })
-
-    // Click the "is" operator
-    cy.get('[data-test-subj="filterOperatorList"]').click()
-    cy.get('[data-test-subj="filterOperatorList"]').find('[data-test-subj="comboBoxInput"]').type('{selectall}is')
-    cy.get('[class="euiFilterSelectItem"]').should('have.length', 6)
-    cy.get('[data-test-subj="filterOperatorList"]').find('[data-test-subj="comboBoxInput"]').focus()
-    cy.get('[title="is"]').click({ force: true })
-
-    // Select the "Wednesday" value
-    cy.get('[data-test-subj="filterParamsComboBox phraseParamsComboxBox"]').click()
-    cy.get('[data-test-subj="filterParamsComboBox phraseParamsComboxBox"]').find('[data-test-subj="comboBoxInput"]').type('{selectall}Wednesday')
-    cy.get('[class="euiFilterSelectItem"]').should('have.length', 1)
-    cy.get('[data-test-subj="filterParamsComboBox phraseParamsComboxBox"]').find('[data-test-subj="comboBoxInput"]').focus()
-    cy.get('[title="Wednesday"]').click({ force: true })
-
-    cy.get('[data-test-subj="saveFilter"]').click()
+    cy.addFilterRetrySelection('day_of_week', 'is', 'Wednesday')
   })
 })

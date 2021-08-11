@@ -105,8 +105,10 @@ dist
 
 .DS_Store
 
+.vscode
 cypress/videos
 cypress/screenshots
+cypress/results
 cypress/downloads
 cypress.env.json
 cypress/fixtures/dashboard/data/testFixtures

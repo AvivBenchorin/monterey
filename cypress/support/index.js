@@ -14,7 +14,9 @@
 // ***********************************************************
 
 // Import commands.js using ES2015 syntax:
-import './commands'
+import './common_commands'
+import './dashboard_commands'
+import './network_commands'
 
 // Alternatively you can use CommonJS syntax:
 // require('./commands')
