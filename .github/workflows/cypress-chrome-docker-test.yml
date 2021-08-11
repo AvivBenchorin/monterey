@@ -1,21 +1,46 @@
 # Adapted from https://github.com/cypress-io/cypress-example-kitchensink/blob/master/.github/workflows/chrome-docker.yml
-
-name: Chrome Docker
+# and from https://github.com/opensearch-project/index-management-dashboards-plugin/blob/8b944a3cc95e831fc02bf2d8eb851bbb697e3034/.github/workflows/cypress-workflow.yml
+name: Chrome Docker Cypress E2E test
 
 on: push
 
 jobs:
   # run Chrome inside a Docker container
-  chrome:
+  tests:
     runs-on: ubuntu-latest
     # https://github.com/cypress-io/cypress-docker-images
     container: cypress/browsers:node12.18.3-chrome87-ff82
     steps:
-      - name: Checkout
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          # TODO: Parse this from index management plugin
+          java-version: 14
+      - name: Checkout OpenSearch
         uses: actions/checkout@v2
+        with:
+          path: opensearch
+          repository: opensearch-project/OpenSearch
+      - name: Run OpenSearch
+        run: |
+          cd opensearch
+          ./gradlew run &
+          timeout 300 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:9200)" != "200" ]]; do sleep 5; done'
+      # TODO: Want to avoid hard-coding the wait for OpenSearch to start-up
+      - name: Checkout OpenSearch Dashboards
+        uses: actions/checkout@v2
+        with:
+          path: opensearch-dashboards
+          repository: opensearch-project/OpenSearch-Dashboards
+      - name: Run OpenSearch Dashboards
+        run: |
+          cd opensearch-dashboards
+          yarn osd bootstrap
+          yarn start --no-base-path &
+          timeout 300 bash -c 'while [[ "$(curl -s localhost:5601/api/status | jq -r '.status.overall.state')" != "green" ]]; do sleep 5; done'
       - name: Chrome
         uses: cypress-io/github-action@v2
         timeout-minutes: 10
         with:
-          start: npm run e2e:chrome:headless
+          command: npm run e2e:chrome:headless
           browser: chrome
