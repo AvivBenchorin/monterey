@@ -61,15 +61,14 @@ jobs:
         id: cypress_version
         run: |
           echo "::set-output name=cypress_version::$(cat ./monterey/package.json | jq '.devDependencies.cypress' | tr -d '"')"
-      - name: Set CYPRESS_INSTALL_BINARY
-        env:
-          CYPRESS_INSTALL_BINARY: ${{ steps.cypress_version.outputs.cypress_version }}
       - name: Cache Cypress
         id: cache-cypress
         uses: actions/cache@v1
         with:
           path: ~/.cache/Cypress
           key: cypress-cache-v2-${{ runner.os }}-${{ hashFiles('**/package.json') }}
+        env:
+          CYPRESS_INSTALL_BINARY: ${{ steps.cypress_version.outputs.cypress_version }}
       - run: npx cypress install
       - run: npx cypress cache list
       - run: npx cypress cache path
@@ -77,7 +76,7 @@ jobs:
         uses: cypress-io/github-action@v2
         with:
           working-directory: monterey
-          command: yarn run cypress run --browser chrome --headless
+          command: yarn run cypress run --browser chrome --headless --reporter cypress-multi-reporters --reporter-options configFile=reporter-config.json
           wait-on: 'http://localhost:5601'
           # browser: chrome
       # Screenshots are only captured on failure, will change this once we do visual regression tests
@@ -92,3 +91,8 @@ jobs:
         with:
           name: cypress-videos
           path: monterey/cypress/videos
+      - uses: actions/upload-artifact@v1
+        if: always()
+        with:
+          name: cypress-junit-report
+          path: monterey/cypress/results/results-[hash].xml
