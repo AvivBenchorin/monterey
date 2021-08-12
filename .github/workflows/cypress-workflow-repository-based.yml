@@ -69,11 +69,18 @@ jobs:
           timeout 300 bash -c 'while [[ "$(curl -s localhost:5601/api/status | jq -r '.status.overall.state')" != "green" ]]; do sleep 5; done'
         # sleep 300
         # for now just chrome, use matrix to do all browsers later
-      - name: Checkout Cypress
+      - name: Checkout Monterey
         uses: actions/checkout@v2
         with:
           repository: AvivBenchorin/monterey
           path: monterey
+      - name: Get Cypress version
+        id: cypress_version
+        run: |
+          echo "::set-output name=cypress_version::$(cat ./monterey/package.json | jq '.devDependencies.cypress' | tr -d '"')"
+      - name: Set CYPRESS_INSTALL_BINARY
+        env:
+          CYPRESS_INSTALL_BINARY: ${{ steps.cypress_version.outputs.cypress_version }}
       - name: Cache Cypress
         id: cache-cypress
         uses: actions/cache@v1
