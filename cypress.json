@@ -1,4 +1,9 @@
 {
     "defaultCommandTimeout": 10000,
-    "baseUrl": "http://localhost:5601"
+    "baseUrl": "http://localhost:5601",
+    "reporter": "junit",
+    "reporterOptions": {
+      "mochaFile": "results/my-test-output.xml",
+      "toConsole": true
+    }
 }
