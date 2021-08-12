@@ -31,55 +31,12 @@ jobs:
           repository: 'opensearch-project/OpenSearch'
           path: OpenSearch
           ref: '1.0'
-      - name: Build OpenSearch
-        working-directory: ./OpenSearch
-        run: ./gradlew publishToMavenLocal -Dbuild.snapshot=false
-      # dependencies: common-utils
-      - name: Checkout common-utils
-        uses: actions/checkout@v2
-        with:
-          repository: 'opensearch-project/common-utils'
-          path: common-utils
-          ref: '1.0'
-      - name: Build common-utils
-        working-directory: ./common-utils
-        run: ./gradlew publishToMavenLocal -Dopensearch.version=1.0.0
-      # dependencies: job-scheduler
-      - name: Checkout job-scheduler
-        uses: actions/checkout@v2
-        with:
-          repository: 'opensearch-project/job-scheduler'
-          path: job-scheduler
-          ref: '1.0'
-      - name: Build job-scheduler
-        working-directory: ./job-scheduler
-        run: ./gradlew publishToMavenLocal -Dopensearch.version=1.0.0 -Dbuild.snapshot=false
-      # dependencies: alerting-notification
-      - name: Checkout alerting
-        uses: actions/checkout@v2
-        with:
-          repository: 'opensearch-project/alerting'
-          path: alerting
-          ref: '1.0'
-      - name: Build alerting
-        working-directory: ./alerting
-        run: ./gradlew :alerting-notification:publishToMavenLocal -Dopensearch.version=1.0.0 -Dbuild.snapshot=false
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          path: index-management
-          repository: opensearch-project/index-management
-          ref: 'main'
-      - name: Run opensearch with plugin
+      - name: Run OpenSearch
         run: |
-          cd index-management
+          cd OpenSearch
           ./gradlew run &
-          sleep 300
-        # timeout 300 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:9200)" != "200" ]]; do sleep 5; done'
-      - name: Checkout Index Management Dashboards plugin
-        uses: actions/checkout@v2
-        with:
-          path: index-management-dashboards-plugin
+          timeout 300 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:9200)" != "200" ]]; do sleep 5; done'
+        #  sleep 300
       - name: Checkout OpenSearch-Dashboards
         uses: actions/checkout@v2
         with:
@@ -103,21 +60,33 @@ jobs:
           npm i -g yarn@${{ steps.versions.outputs.yarn_version }}
       - name: Bootstrap plugin/OpenSearch-Dashboards
         run: |
-          mkdir -p OpenSearch-Dashboards/plugins
-          mv index-management-dashboards-plugin OpenSearch-Dashboards/plugins
-          cd OpenSearch-Dashboards/plugins/index-management-dashboards-plugin
+          cd OpenSearch-Dashboards
           yarn osd bootstrap
       - name: Run OpenSearch-Dashboards server
         run: |
           cd OpenSearch-Dashboards
           yarn start --no-base-path --no-watch &
-          sleep 300
-        # timeout 300 bash -c 'while [[ "$(curl -s localhost:5601/api/status | jq -r '.status.overall.state')" != "green" ]]; do sleep 5; done'
-      # for now just chrome, use matrix to do all browsers later
+          timeout 300 bash -c 'while [[ "$(curl -s localhost:5601/api/status | jq -r '.status.overall.state')" != "green" ]]; do sleep 5; done'
+        # sleep 300
+        # for now just chrome, use matrix to do all browsers later
+      - name: Checkout Cypress
+        uses: actions/checkout@v2
+        with:
+          repository: AvivBenchorin/monterey
+          path: monterey
+      - name: Cache Cypress
+        id: cache-cypress
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-cache-v2-${{ runner.os }}-${{ hashFiles('**/package.json') }}
+      - run: npx cypress install
+      - run: npx cypress cache list
+      - run: npx cypress cache path
       - name: Cypress tests
         uses: cypress-io/github-action@v2
         with:
-          working-directory: OpenSearch-Dashboards/plugins/index-management-dashboards-plugin
+          working-directory: monterey
           command: yarn run cypress run
           wait-on: 'http://localhost:5601'
           browser: chrome
@@ -126,10 +95,10 @@ jobs:
         if: failure()
         with:
           name: cypress-screenshots
-          path: OpenSearch-Dashboards/plugins/index-management-dashboards-plugin/cypress/screenshots
+          path: monterey/cypress/screenshots
       # Test run video was always captured, so this action uses "always()" condition
       - uses: actions/upload-artifact@v1
         if: always()
         with:
           name: cypress-videos
-          path: OpenSearch-Dashboards/plugins/index-management-dashboards-plugin/cypress/videos
+          path: monterey/cypress/videos

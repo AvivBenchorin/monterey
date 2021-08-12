@@ -38,6 +38,7 @@ jobs:
           yarn osd bootstrap
           yarn start --no-base-path &
           timeout 300 bash -c 'while [[ "$(curl -s localhost:5601/api/status | jq -r '.status.overall.state')" != "green" ]]; do sleep 5; done'
+        # TODO: will need to properly set up Node version 10.24.1
       - name: Chrome
         uses: cypress-io/github-action@v2
         timeout-minutes: 10
