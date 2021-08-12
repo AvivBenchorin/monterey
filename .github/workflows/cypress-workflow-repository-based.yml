@@ -1,4 +1,4 @@
-name: E2E tests workflow
+name: E2E tests workflow - repository based
 on:
   pull_request:
     branches:
