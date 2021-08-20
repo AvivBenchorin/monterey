@@ -6,17 +6,17 @@
  */
 
 Cypress.Commands.add('importJSONMapping', (filepath, hostname = 'localhost', port = '9200') => {
+  const parseIndex = ({ index, settings, mappings, aliases }) => {
+    return { index, body: { settings, mappings, aliases } }
+  }
+
   cy.readFile(filepath, 'utf8').then((str) => {
     const strSplit = str.split('\n\n')
-    cy.wrap(strSplit).each((element) => {
+    strSplit.forEach((element) => {
       const json = JSON.parse(element)
       if (json.type === 'index') {
-        const index = json.value.index
-        const settings = json.value.settings
-        const mappings = json.value.mappings
-        const aliases = json.value.aliases
-        const body = { settings, mappings, aliases }
-        cy.request({ method: 'PUT', url: `${hostname}:${port}/${index}`, body: body, failOnStatusCode: false }).then((response) => {
+        const indexContent = parseIndex(json.value)
+        cy.request({ method: 'PUT', url: `${hostname}:${port}/${indexContent.index}`, body: indexContent.body, failOnStatusCode: false }).then((response) => {
 
         })
       }
@@ -34,7 +34,7 @@ Cypress.Commands.add('importJSONMapping', (filepath, hostname = 'localhost', por
 Cypress.Commands.add('clearJSONMapping', (filename, hostname = 'localhost', port = '9200') => {
   cy.readFile(filename, 'utf8').then((str) => {
     const strSplit = str.split('\n\n')
-    cy.wrap(strSplit).each((element) => {
+    strSplit.forEach((element) => {
       const json = JSON.parse(element)
       if (json.type === 'index') {
         const index = json.value.index
@@ -53,39 +53,39 @@ Cypress.Commands.add('clearJSONMapping', (filename, hostname = 'localhost', port
  */
 
 Cypress.Commands.add('importJSONDoc', (filename, hostname = 'localhost', port = '9200', bulkMax = 1600) => {
+  const parseDocument = ({ value: { id, index, source } }) => {
+    const actionData = { index: { _id: id, _index: index } }
+    const oneLineAction = JSON.stringify(actionData).replace('\n', '')
+    const oneLineSource = JSON.stringify(source).replace('\n', '')
+    const bulkOperation = `${oneLineAction}\n${oneLineSource}`
+    return bulkOperation
+  }
+
+  const sendBulkAPIRequest = (bodyArray, hostname, port) => {
+    cy.request({ headers: { 'Content-Type': 'application/json' }, method: 'POST', url: `${hostname}:${port}/_bulk`, body: `${bodyArray.join('\n')}\n`, timeout: 30000 }).then((response) => {
+
+    })
+  }
+
   cy.readFile(filename, 'utf8').then((str) => {
-    let line = 0
-    let bucket = 0
+    let readJSONCount = 0
     const bulkLines = [[]]
     str.split('\n\n').forEach((element) => {
-      const json = JSON.parse(element)
+      bulkLines[0].push(parseDocument(JSON.parse(element)))
 
-      const id = json.value.id
-      const index = json.value.index
-      const source = json.value.source
-
-      const body = { index: { _id: id, _index: index } }
-      const oneLineBody = JSON.stringify(body).replace('\n', '')
-      const oneLineSource = JSON.stringify(source).replace('\n', '')
-      const oneLineDoc = `${oneLineBody}\n${oneLineSource}`
-      bulkLines[0].push(oneLineDoc)
-
-      line++
-      if (line % bulkMax === 0) {
-        cy.request({ headers: { 'Content-Type': 'application/json' }, method: 'POST', url: `${hostname}:${port}/_bulk`, body: `${bulkLines.pop().join('\n')}\n`, failOnStatusCode: false, timeout: 30000 }).then((response) => {
-          expect(response.status).to.eq(200)
-        })
-        bucket++
+      readJSONCount++
+      if (readJSONCount % bulkMax === 0) {
+        sendBulkAPIRequest(bulkLines.pop(), hostname, port)
         bulkLines.push([])
       }
     })
+
     if (bulkLines.length > 0) {
-      cy.request({ headers: { 'Content-Type': 'application/json' }, method: 'POST', url: `${hostname}:${port}/_bulk`, body: `${bulkLines.pop().join('\n')}\n`, failOnStatusCode: false, timeout: 30000 }).then((response) => {
-        expect(response.status).to.eq(200)
-      })
+      sendBulkAPIRequest(bulkLines.pop(), hostname, port)
     }
-    cy.request({ method: 'POST', url: `${hostname}:${port}/_all/_refresh`, failOnStatusCode: false }).then((response) => {
-      expect(response.status).to.eq(200)
+
+    cy.request({ method: 'POST', url: `${hostname}:${port}/_all/_refresh` }).then((response) => {
+
     })
   })
 })
